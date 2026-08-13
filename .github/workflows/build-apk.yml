@@ -1,8 +1,8 @@
-name: Build Chef Asistente v0.6 Offline Voice APK
+name: Build Chef Asistente v0.6.1 Offline Voice Fix APK
 
 on:
   push:
-    branches: [ main, chef-v0.6-offline ]
+    branches: [ chef-v0.6.1-offline-fix ]
   workflow_dispatch:
 
 jobs:
@@ -80,11 +80,11 @@ jobs:
         run: ls -lh app/build/outputs/apk/release/app-release.apk
 
       - name: Prepare deliverable
-        run: cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.6_OFFLINE_VOZ.apk
+        run: cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.6.1_OFFLINE_VOZ_FIX.apk
 
       - name: Upload offline voice APK
         uses: actions/upload-artifact@v4
         with:
-          name: ChefAsistente-v0.6-OFFLINE-VOZ
-          path: ChefAsistente_v0.6_OFFLINE_VOZ.apk
+          name: ChefAsistente-v0.6.1-OFFLINE-VOZ-FIX
+          path: ChefAsistente_v0.6.1_OFFLINE_VOZ_FIX.apk
           retention-days: 30
