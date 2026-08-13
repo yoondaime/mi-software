@@ -1,4 +1,4 @@
-name: Build Chef Asistente Voice Fix APK
+name: Build Chef Asistente Hybrid APK
 
 on:
   push:
@@ -29,27 +29,32 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Bundle offline recipe catalog
+        run: |
+          mkdir -p app/src/main/assets
+          cp data/recetas.json app/src/main/assets/recetas.json
+
       - name: Generate temporary demo signing key
         run: |
-          keytool -genkeypair -v -keystore "$GITHUB_WORKSPACE/chef-release.jks" -storepass 'ChefDemo2026!' -keypass 'ChefDemo2026!' -alias chef -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Chef Asistente Demo, OU=Development, O=Chef Asistente, L=Tacna, ST=Tacna, C=PE"
+          keytool -genkeypair -v -keystore app/chef-release.jks -storepass 'ChefDemo2026!' -keypass 'ChefDemo2026!' -alias chef -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Chef Asistente Demo, OU=Development, O=Chef Asistente, L=Tacna, ST=Tacna, C=PE"
 
       - name: Build signed release APK
         env:
-          CHEF_KEYSTORE: ${{ github.workspace }}/chef-release.jks
-          CHEF_STORE_PASSWORD: ChefDemo2026!
+          CHEF_KEYSTORE: chef-release.jks
+          CHEF_STORE_PASSWORD: 'ChefDemo2026!'
           CHEF_KEY_ALIAS: chef
-          CHEF_KEY_PASSWORD: ChefDemo2026!
+          CHEF_KEY_PASSWORD: 'ChefDemo2026!'
         run: gradle :app:assembleRelease --stacktrace
 
       - name: Verify APK signature
-        run: $ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+        run: $ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose app/build/outputs/apk/release/app-release.apk
 
       - name: Prepare deliverable
-        run: cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.3_VOZ.apk
+        run: cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.4_HIBRIDO.apk
 
-      - name: Upload release APK
+      - name: Upload hybrid APK
         uses: actions/upload-artifact@v4
         with:
-          name: ChefAsistente-v0.3-VOZ
-          path: ChefAsistente_v0.3_VOZ.apk
+          name: ChefAsistente-v0.4-HIBRIDO
+          path: ChefAsistente_v0.4_HIBRIDO.apk
           retention-days: 30
