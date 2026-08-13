@@ -7,11 +7,11 @@ android {
     compileSdk 36
 
     defaultConfig {
-        applicationId "pe.chef.asistente.offline061"
+        applicationId "pe.chef.asistente.offline062"
         minSdk 23
         targetSdk 36
-        versionCode 7
-        versionName "0.6.1"
+        versionCode 8
+        versionName "0.6.2"
 
         ndk {
             abiFilters 'arm64-v8a'
@@ -47,4 +47,5 @@ android {
 
 dependencies {
     implementation files('libs/sherpa-onnx-1.13.5.aar')
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.7.20'
 }
