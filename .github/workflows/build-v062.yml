@@ -1,0 +1,43 @@
+name: Build Chef v0.6.2
+on:
+  push:
+    branches: [ chef-v0.6.2-kotlin-fix ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - run: |
+          mkdir -p app/src/main/assets app/libs
+          cp data/recetas.json app/src/main/assets/recetas.json
+          [ ! -f data/recetas_pack2.json ] || cp data/recetas_pack2.json app/src/main/assets/recetas_pack2.json
+          curl -L --fail -o app/libs/sherpa-onnx-1.13.5.aar https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.5/sherpa-onnx-1.13.5.aar
+          MODEL=sherpa-onnx-moonshine-base-es-quantized-2026-02-27
+          curl -L --fail -o model.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/${MODEL}.tar.bz2
+          tar xjf model.tar.bz2
+          mkdir -p app/src/main/assets/models/moonshine-es
+          cp ${MODEL}/encoder_model.ort ${MODEL}/decoder_model_merged.ort ${MODEL}/tokens.txt app/src/main/assets/models/moonshine-es/
+      - run: keytool -genkeypair -keystore app/chef-release.jks -storepass 'ChefDemo2026!' -keypass 'ChefDemo2026!' -alias chef -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Chef Asistente Demo, O=Chef Asistente, C=PE"
+      - run: gradle :app:assembleRelease --stacktrace
+        env:
+          CHEF_KEYSTORE: chef-release.jks
+          CHEF_STORE_PASSWORD: 'ChefDemo2026!'
+          CHEF_KEY_ALIAS: chef
+          CHEF_KEY_PASSWORD: 'ChefDemo2026!'
+      - run: $ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose app/build/outputs/apk/release/app-release.apk
+      - run: cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.6.2_OFFLINE_VOZ_FIX.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChefAsistente-v0.6.2-OFFLINE-VOZ-FIX
+          path: ChefAsistente_v0.6.2_OFFLINE_VOZ_FIX.apk
+          retention-days: 30
