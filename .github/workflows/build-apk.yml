@@ -1,8 +1,8 @@
-name: Build Chef Asistente Hybrid APK
+name: Build Chef Asistente v0.6 Offline Voice APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, chef-v0.6-offline ]
   workflow_dispatch:
 
 jobs:
@@ -29,10 +29,37 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Bundle offline recipe catalog
+      - name: Bundle recipe catalogs
         run: |
           mkdir -p app/src/main/assets
           cp data/recetas.json app/src/main/assets/recetas.json
+          if [ -f data/recetas_pack2.json ]; then
+            cp data/recetas_pack2.json app/src/main/assets/recetas_pack2.json
+          fi
+
+      - name: Download official sherpa-onnx Android library
+        run: |
+          mkdir -p app/libs
+          curl -L --fail --retry 3 \
+            -o app/libs/sherpa-onnx-1.13.5.aar \
+            https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.5/sherpa-onnx-1.13.5.aar
+          ls -lh app/libs/sherpa-onnx-1.13.5.aar
+
+      - name: Bundle Spanish Moonshine v2 offline model
+        run: |
+          MODEL=sherpa-onnx-moonshine-base-es-quantized-2026-02-27
+          curl -L --fail --retry 3 \
+            -o moonshine-es.tar.bz2 \
+            https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/${MODEL}.tar.bz2
+          tar xjf moonshine-es.tar.bz2
+          mkdir -p app/src/main/assets/models/moonshine-es
+          cp ${MODEL}/encoder_model.ort app/src/main/assets/models/moonshine-es/
+          cp ${MODEL}/decoder_model_merged.ort app/src/main/assets/models/moonshine-es/
+          cp ${MODEL}/tokens.txt app/src/main/assets/models/moonshine-es/
+          if [ -f ${MODEL}/LICENSE ]; then
+            cp ${MODEL}/LICENSE app/src/main/assets/models/moonshine-es/MODEL_LICENSE.txt
+          fi
+          ls -lh app/src/main/assets/models/moonshine-es/
 
       - name: Generate temporary demo signing key
         run: |
@@ -49,12 +76,15 @@ jobs:
       - name: Verify APK signature
         run: $ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose app/build/outputs/apk/release/app-release.apk
 
-      - name: Prepare deliverable
-        run: cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.4_HIBRIDO.apk
+      - name: Show APK size
+        run: ls -lh app/build/outputs/apk/release/app-release.apk
 
-      - name: Upload hybrid APK
+      - name: Prepare deliverable
+        run: cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.6_OFFLINE_VOZ.apk
+
+      - name: Upload offline voice APK
         uses: actions/upload-artifact@v4
         with:
-          name: ChefAsistente-v0.4-HIBRIDO
-          path: ChefAsistente_v0.4_HIBRIDO.apk
+          name: ChefAsistente-v0.6-OFFLINE-VOZ
+          path: ChefAsistente_v0.6_OFFLINE_VOZ.apk
           retention-days: 30
