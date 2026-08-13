@@ -7,11 +7,11 @@ android {
     compileSdk 36
 
     defaultConfig {
-        applicationId "pe.chef.asistente.voicefix03"
+        applicationId "pe.chef.asistente.hybrid04"
         minSdk 23
         targetSdk 36
-        versionCode 3
-        versionName "0.3"
+        versionCode 4
+        versionName "0.4"
     }
 
     signingConfigs {
