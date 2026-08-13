@@ -14,7 +14,6 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -22,127 +21,412 @@ import android.widget.Toast;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.Locale;
-import java.util.Map;
 
 public class MainActivity extends Activity implements TextToSpeech.OnInitListener {
-    private static final int VOICE_REQUEST = 2001;
+    private static final int VOICE_REQUEST = 300;
 
-    static class Recipe {
-        final String name; final String[][] ingredients; final String[] steps;
-        Recipe(String name, String[][] ingredients, String[] steps) {
-            this.name=name; this.ingredients=ingredients; this.steps=steps;
-        }
-    }
+    private final int GREEN = Color.rgb(23, 92, 76);
+    private final int GREEN_DARK = Color.rgb(14, 68, 56);
+    private final int CREAM = Color.rgb(255, 249, 238);
+    private final int ORANGE = Color.rgb(240, 138, 75);
+    private final int TEXT = Color.rgb(29, 42, 38);
+    private final int MUTED = Color.rgb(96, 110, 105);
 
-    private final Map<String,Recipe> recipes = new LinkedHashMap<>();
-    private Recipe current;
-    private int servings=0, step=0, state=0;
+    private RecipeStore store;
+    private RecipeStore.Recipe current;
+    private int servings = 0;
+    private int stepIndex = 0;
+    private int state = 0;
 
     private LinearLayout messages;
-    private ScrollView chatScroll;
+    private ScrollView scroll;
     private EditText input;
-    private TextView contextText, listeningText, heardText;
+    private TextView recipeStatus;
+    private TextView networkStatus;
+    private TextView heardStatus;
+    private Button updateButton;
     private TextToSpeech tts;
-    private boolean ttsReady=false, greetingSpoken=false;
+    private boolean ttsReady = false;
+    private boolean greetingPending = true;
 
-    private final int GREEN=Color.rgb(23,92,76), GREEN_DARK=Color.rgb(14,68,56);
-    private final int CREAM=Color.rgb(255,249,238), ORANGE=Color.rgb(240,138,75);
-    private final int TEXT=Color.rgb(29,42,38), MUTED=Color.rgb(102,115,111);
-
-    @Override protected void onCreate(Bundle b) {
-        super.onCreate(b);
-        loadRecipes();
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
         getWindow().setStatusBarColor(GREEN_DARK);
         getWindow().setNavigationBarColor(CREAM);
+
+        store = new RecipeStore(this);
+        try {
+            store.loadBestLocalCatalog();
+        } catch (Exception e) {
+            Toast.makeText(this, "No pude cargar las recetas locales.", Toast.LENGTH_LONG).show();
+        }
+
         setContentView(buildUi());
-        addMessage("Hola. Soy Chef Asistente. ¿Qué quieres cocinar hoy?", false);
-        tts=new TextToSpeech(this,this);
+        tts = new TextToSpeech(this, this);
+        say("Hola. Soy Chef Asistente. Tengo " + store.size() + " recetas disponibles. ¿Qué quieres cocinar hoy?", false);
+        syncRecipes(false);
     }
 
-    private void loadRecipes(){
-        add("arroz chaufa","Arroz chaufa",new String[][]{{"4","tazas","arroz cocido frío"},{"400","gramos","pollo"},{"4","unidades","huevos"},{"1","taza","cebolla china"},{"4","cucharadas","sillao"}},new String[]{"Corta el pollo y pica la cebolla china.","Bate los huevos.","Cocina el huevo y resérvalo.","Saltea el pollo hasta que esté cocido.","Agrega el arroz y saltea a fuego alto.","Añade el sillao.","Incorpora huevo y cebolla china, mezcla y sirve."});
-        add("lomo saltado","Lomo saltado",new String[][]{{"600","gramos","carne de res"},{"2","unidades","cebolla roja"},{"3","unidades","tomate"},{"800","gramos","papas"},{"4","cucharadas","sillao"}},new String[]{"Corta carne, cebolla y tomate.","Fríe las papas y resérvalas.","Sella la carne a fuego alto.","Añade cebolla y tomate.","Agrega sillao, mezcla y sirve con papas."});
-        add("aji de gallina","Ají de gallina",new String[][]{{"500","gramos","pollo"},{"5","cucharadas","ají amarillo"},{"4","rebanadas","pan"},{"1","taza","leche evaporada"},{"4","unidades","papa"}},new String[]{"Sancocha el pollo y deshiláchalo.","Remoja el pan con leche.","Sofríe cebolla y ají.","Agrega el pan licuado.","Incorpora el pollo y cocina.","Sirve sobre papa sancochada."});
-        add("arroz con pollo","Arroz con pollo",new String[][]{{"4","unidades","presas de pollo"},{"3","tazas","arroz"},{"1","taza","culantro licuado"},{"1","taza","arvejas"},{"4","tazas","caldo"}},new String[]{"Sazona y dora el pollo.","Sofríe cebolla y culantro.","Añade verduras y caldo.","Incorpora arroz y pollo.","Cocina tapado hasta que el arroz esté listo."});
-        add("tallarin saltado","Tallarín saltado",new String[][]{{"500","gramos","tallarines"},{"500","gramos","pollo o carne"},{"2","unidades","cebolla roja"},{"3","unidades","tomate"},{"4","cucharadas","sillao"}},new String[]{"Cocina los tallarines al dente.","Corta proteína y verduras.","Saltea la proteína.","Añade cebolla y tomate.","Agrega tallarines y sillao, mezcla y sirve."});
-        add("pollo al horno","Pollo al horno",new String[][]{{"4","unidades","presas de pollo"},{"800","gramos","papas"},{"2","cucharadas","ajo molido"},{"2","cucharadas","mostaza"},{"2","unidades","limón"}},new String[]{"Mezcla ajo, mostaza y limón.","Unta el pollo con el aderezo.","Corta las papas y colócalas en una fuente.","Hornea pollo y papas hasta que estén bien cocidos."});
-        add("causa rellena","Causa rellena",new String[][]{{"1","kilogramo","papa amarilla"},{"3","cucharadas","ají amarillo"},{"3","unidades","limón"},{"2","latas","atún"},{"5","cucharadas","mayonesa"},{"2","unidades","palta"}},new String[]{"Sancocha y prensa las papas.","Mezcla papa, ají, limón y sal.","Mezcla el atún con mayonesa.","Forma capas de papa, relleno y palta."});
-        add("papa a la huancaina","Papa a la huancaína",new String[][]{{"8","unidades","papas"},{"300","gramos","queso fresco"},{"4","unidades","ají amarillo"},{"1","taza","leche evaporada"},{"6","unidades","galletas de soda"}},new String[]{"Sancocha las papas.","Licúa queso, ají, leche y galletas.","Ajusta la textura con leche.","Corta las papas y sirve con la salsa."});
-        add("estofado de pollo","Estofado de pollo",new String[][]{{"4","unidades","presas de pollo"},{"4","unidades","papas"},{"2","unidades","zanahorias"},{"3","unidades","tomates"},{"1","taza","arvejas"}},new String[]{"Sazona y dora el pollo.","Sofríe cebolla y tomate.","Agrega zanahoria, arvejas y caldo.","Añade pollo y papas y cocina hasta que estén listos."});
-        add("ceviche","Ceviche",new String[][]{{"800","gramos","pescado fresco"},{"12","unidades","limones"},{"2","unidades","cebolla roja"},{"2","unidades","ají limo"},{"2","unidades","camote"}},new String[]{"Mantén el pescado frío y córtalo en cubos.","Corta la cebolla en pluma.","Sazona el pescado y agrega ají.","Exprime el limón justo antes de mezclar.","Mezcla brevemente y sirve de inmediato."});
-    }
-    private void add(String key,String name,String[][] ing,String[] steps){recipes.put(key,new Recipe(name,ing,steps));}
+    private View buildUi() {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(14), dp(12), dp(14), dp(12));
+        root.setBackgroundColor(CREAM);
 
-    private View buildUi(){
-        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(CREAM); root.setPadding(dp(16),dp(12),dp(16),dp(12));
-        LinearLayout header=new LinearLayout(this); header.setOrientation(LinearLayout.VERTICAL); header.setPadding(dp(18),dp(18),dp(18),dp(18)); header.setBackground(round(GREEN,22));
-        TextView small=txt("CHEF ASISTENTE · VOZ v0.3",12,Color.WHITE,true); small.setLetterSpacing(.08f);
-        TextView title=txt("¿Qué quieres cocinar hoy?",25,Color.WHITE,true); title.setPadding(0,dp(6),0,dp(4));
-        header.addView(small); header.addView(title); header.addView(txt("Toca HABLAR. Te mostraré exactamente lo que Android entendió.",14,Color.rgb(226,242,237),false)); root.addView(header);
-        contextText=txt("Esperando receta",13,MUTED,true); contextText.setPadding(dp(4),dp(10),0,dp(4)); root.addView(contextText);
-        heardText=txt("Último escuchado: —",13,GREEN_DARK,true); heardText.setPadding(dp(4),0,0,dp(7)); root.addView(heardText);
-        root.addView(shortcuts());
-        chatScroll=new ScrollView(this); messages=new LinearLayout(this); messages.setOrientation(LinearLayout.VERTICAL); messages.setPadding(0,dp(8),0,dp(8)); chatScroll.addView(messages); root.addView(chatScroll,new LinearLayout.LayoutParams(-1,0,1));
-        listeningText=txt("Toca HABLAR para abrir el dictado de voz",13,MUTED,false); listeningText.setGravity(Gravity.CENTER); listeningText.setPadding(0,dp(5),0,dp(5)); root.addView(listeningText);
-        Button mic=new Button(this); mic.setText("🎤  HABLAR"); mic.setTextSize(18); mic.setTextColor(Color.WHITE); mic.setAllCaps(false); mic.setTypeface(Typeface.DEFAULT_BOLD); mic.setBackground(round(ORANGE,28)); mic.setOnClickListener(v->voice()); root.addView(mic,new LinearLayout.LayoutParams(-1,dp(60)));
-        LinearLayout row=new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setPadding(0,dp(10),0,0);
-        input=new EditText(this); input.setHint("También puedes escribir…"); input.setTextSize(16); input.setSingleLine(true); input.setImeOptions(EditorInfo.IME_ACTION_SEND); input.setPadding(dp(14),0,dp(14),0); input.setBackground(round(Color.WHITE,18)); input.setOnEditorActionListener((v,id,e)->{if(id==EditorInfo.IME_ACTION_SEND){sendTyped();return true;}return false;});
-        Button send=new Button(this); send.setText("Enviar"); send.setAllCaps(false); send.setTextColor(Color.WHITE); send.setTypeface(Typeface.DEFAULT_BOLD); send.setBackground(round(GREEN,18)); send.setOnClickListener(v->sendTyped());
-        row.addView(input,new LinearLayout.LayoutParams(0,dp(52),1)); LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(92),dp(52)); p.setMargins(dp(8),0,0,0); row.addView(send,p); root.addView(row);
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setPadding(dp(18), dp(16), dp(18), dp(16));
+        header.setBackground(round(GREEN, 22));
+        TextView brand = label("CHEF ASISTENTE · HÍBRIDO v0.4", 13, Color.WHITE, true);
+        TextView question = label("¿Qué quieres cocinar hoy?", 25, Color.WHITE, true);
+        question.setPadding(0, dp(5), 0, dp(3));
+        TextView sub = label("Funciona sin internet y actualiza recetas cuando hay conexión", 14, Color.rgb(224, 242, 236), false);
+        header.addView(brand);
+        header.addView(question);
+        header.addView(sub);
+        root.addView(header);
+
+        LinearLayout networkRow = new LinearLayout(this);
+        networkRow.setOrientation(LinearLayout.HORIZONTAL);
+        networkRow.setGravity(Gravity.CENTER_VERTICAL);
+        networkRow.setPadding(dp(3), dp(9), dp(3), dp(4));
+        networkStatus = label("📵 Catálogo local v" + store.getCatalogVersion() + " · " + store.size() + " recetas", 13, MUTED, true);
+        networkRow.addView(networkStatus, new LinearLayout.LayoutParams(0, -2, 1f));
+        updateButton = new Button(this);
+        updateButton.setText("Actualizar");
+        updateButton.setAllCaps(false);
+        updateButton.setTextColor(Color.WHITE);
+        updateButton.setTextSize(13);
+        updateButton.setBackground(round(GREEN_DARK, 16));
+        updateButton.setOnClickListener(v -> syncRecipes(true));
+        networkRow.addView(updateButton, new LinearLayout.LayoutParams(dp(100), dp(42)));
+        root.addView(networkRow);
+
+        recipeStatus = label("Esperando receta", 13, MUTED, true);
+        recipeStatus.setPadding(dp(4), dp(2), dp(4), dp(3));
+        root.addView(recipeStatus);
+        heardStatus = label("🎙️ Aún no has usado el dictado", 12, MUTED, false);
+        heardStatus.setPadding(dp(4), dp(2), dp(4), dp(6));
+        root.addView(heardStatus);
+
+        scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        messages = new LinearLayout(this);
+        messages.setOrientation(LinearLayout.VERTICAL);
+        messages.setPadding(0, dp(4), 0, dp(8));
+        scroll.addView(messages);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+
+        Button mic = new Button(this);
+        mic.setText("🎤  HABLAR");
+        mic.setTextSize(18);
+        mic.setAllCaps(false);
+        mic.setTypeface(Typeface.DEFAULT_BOLD);
+        mic.setTextColor(Color.WHITE);
+        mic.setBackground(round(ORANGE, 28));
+        mic.setOnClickListener(v -> launchVoiceInput());
+        root.addView(mic, new LinearLayout.LayoutParams(-1, dp(60)));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, dp(9), 0, 0);
+        input = new EditText(this);
+        input.setTextSize(16);
+        input.setHint("O escribe: quiero arroz chaufa");
+        input.setSingleLine(true);
+        input.setImeOptions(EditorInfo.IME_ACTION_SEND);
+        input.setPadding(dp(12), 0, dp(12), 0);
+        input.setBackground(round(Color.WHITE, 18));
+        input.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEND) {
+                sendTyped();
+                return true;
+            }
+            return false;
+        });
+        Button send = new Button(this);
+        send.setText("Enviar");
+        send.setAllCaps(false);
+        send.setTextColor(Color.WHITE);
+        send.setTypeface(Typeface.DEFAULT_BOLD);
+        send.setBackground(round(GREEN, 18));
+        send.setOnClickListener(v -> sendTyped());
+        row.addView(input, new LinearLayout.LayoutParams(0, dp(52), 1f));
+        LinearLayout.LayoutParams sendParams = new LinearLayout.LayoutParams(dp(92), dp(52));
+        sendParams.setMargins(dp(7), 0, 0, 0);
+        row.addView(send, sendParams);
+        root.addView(row);
         return root;
     }
 
-    private View shortcuts(){
-        HorizontalScrollView s=new HorizontalScrollView(this); s.setHorizontalScrollBarEnabled(false); LinearLayout row=new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL);
-        String[] a={"Arroz chaufa","Lomo saltado","Ají de gallina","Ceviche","Arroz con pollo"};
-        for(String r:a){Button b=new Button(this); b.setText(r); b.setAllCaps(false); b.setTextColor(GREEN_DARK); b.setBackground(round(Color.WHITE,18)); b.setOnClickListener(v->process(((Button)v).getText().toString())); LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(44)); p.setMargins(0,0,dp(8),0); row.addView(b,p);} s.addView(row); return s;
+    private void syncRecipes(boolean requestedByUser) {
+        updateButton.setEnabled(false);
+        networkStatus.setText("🌐 Buscando actualización…");
+        store.updateFromInternet((online, updated, message) -> {
+            updateButton.setEnabled(true);
+            networkStatus.setText((online ? "🌐 " : "📵 ") + message);
+            if (requestedByUser) {
+                say(online ? "Recetas actualizadas. Tienes " + store.size() + " recetas disponibles." : "No hay conexión. Seguiremos usando las recetas guardadas en el celular.", true);
+            }
+        });
     }
 
-    private void voice(){
-        if(tts!=null)tts.stop();
-        Intent i=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH); i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"es-PE"); i.putExtra(RecognizerIntent.EXTRA_PROMPT,"Habla con Chef Asistente"); i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,3);
-        try{listeningText.setText("Habla ahora…"); startActivityForResult(i,VOICE_REQUEST);}catch(ActivityNotFoundException e){listeningText.setText("No hay servicio de dictado disponible"); Toast.makeText(this,"No encontré el dictado de voz de Android. Puedes escribir mientras incorporamos el motor offline propio.",Toast.LENGTH_LONG).show();}
+    private void sendTyped() {
+        String value = input.getText().toString().trim();
+        if (value.isEmpty()) return;
+        input.setText("");
+        process(value);
     }
 
-    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
-        super.onActivityResult(requestCode,resultCode,data); if(requestCode!=VOICE_REQUEST)return; listeningText.setText("Toca HABLAR para volver a hablar");
-        if(resultCode==RESULT_OK&&data!=null){ArrayList<String> a=data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS); if(a!=null&&!a.isEmpty()){String h=a.get(0).trim(); heardText.setText("Último escuchado: “"+h+"”"); process(h); return;}}
-        heardText.setText("Último escuchado: no se recibió texto"); say("No recibí ninguna frase. Toca hablar e inténtalo otra vez.",true);
+    private void process(String raw) {
+        bubble(raw, true);
+        String in = norm(raw);
+        String response;
+
+        if (in.contains("otra receta") || in.contains("cambiar receta") || in.contains("nueva receta")) {
+            resetRecipe();
+            response = "Perfecto. ¿Qué quieres cocinar ahora?";
+        } else if (in.contains("terminar receta") || in.equals("terminar")) {
+            resetRecipe();
+            response = "De acuerdo. Terminamos esta sesión. Cuando quieras, dime otra receta.";
+        } else if (state == 0) {
+            current = store.find(in);
+            if (current == null) {
+                response = "Esa receta todavía no está en mi catálogo guardado. En esta versión puedo cocinar contigo arroz chaufa, lomo saltado, ají de gallina, arroz con pollo, tallarín saltado, pollo al horno, causa rellena, papa a la huancaína, estofado de pollo y ceviche.";
+            } else {
+                state = 1;
+                recipeStatus.setText(current.name + " · falta indicar personas");
+                response = "Claro. Prepararemos " + current.name + ". ¿Para cuántas personas?";
+            }
+        } else if (state == 1) {
+            int n = detectNumber(in);
+            if (n < 1 || n > 20) {
+                response = "Dime un número entre 1 y 20. Por ejemplo: para cuatro personas.";
+            } else {
+                servings = n;
+                state = 2;
+                recipeStatus.setText(current.name + " · " + servings + " personas · listo para preparar");
+                response = "Perfecto. " + ingredientSummary() + " También tengo la preparación previa completa. Puedes decir preparación o comenzar.";
+            }
+        } else if (in.contains("ingrediente") || in.contains("que necesito") || in.contains("lista completa")) {
+            response = ingredientSummary();
+        } else if (in.contains("preparacion") || in.contains("antes de empezar") || in.contains("antes de comenzar")) {
+            response = preparationSummary();
+        } else if (in.contains("cuanto") || in.contains("cantidad de") || in.contains("cuanta") || in.contains("cuantas")) {
+            response = amountAnswer(in);
+        } else if (state == 2) {
+            if (in.contains("comenz") || in.contains("empez") || in.equals("listo") || in.equals("vamos") || in.equals("si")) {
+                state = 3;
+                stepIndex = 0;
+                recipeStatus.setText(current.name + " · paso 1 de " + current.steps.size());
+                response = "Antes del primer paso: " + preparationSummary() + " Si ya lo tienes listo, empezamos. " + currentStep();
+            } else {
+                response = "Puedes decir comenzar, preparación, ingredientes o preguntarme cuánto necesitas de un ingrediente.";
+            }
+        } else {
+            if (in.contains("repet")) {
+                response = currentStep();
+            } else if (in.contains("anterior") || in.contains("atras")) {
+                if (stepIndex > 0) stepIndex--;
+                updateStepStatus();
+                response = currentStep();
+            } else if (in.contains("siguiente") || in.contains("que sigue") || in.contains("sigue") || in.contains("ya esta") || in.equals("listo") || in.contains("continua")) {
+                if (stepIndex < current.steps.size() - 1) {
+                    stepIndex++;
+                    updateStepStatus();
+                    response = currentStep();
+                } else {
+                    response = "¡Listo! Terminamos " + current.name + ". Buen provecho. Cuando quieras puedes pedirme otra receta.";
+                    resetRecipe();
+                }
+            } else if (in.contains("pausa") || in.contains("espera")) {
+                response = "De acuerdo. Nos quedamos en el paso " + (stepIndex + 1) + ". Cuando quieras continuar, dime repetir o siguiente.";
+            } else {
+                response = "Estamos en el paso " + (stepIndex + 1) + ". Puedes decir siguiente, repetir, anterior, ingredientes, cuánto necesitas de algo o pausa.";
+            }
+        }
+        say(response, true);
     }
 
-    private void sendTyped(){String s=input.getText().toString().trim(); if(s.isEmpty())return; input.setText(""); heardText.setText("Último escrito: “"+s+"”"); process(s);}
-
-    private void process(String raw){
-        bubble(raw,true); String in=norm(raw), response;
-        if(in.contains("otra receta")||in.contains("cambiar receta")){reset(); response="Claro. ¿Qué quieres cocinar ahora?";}
-        else if(state==0){current=find(in); if(current==null)response="Todavía no tengo esa receta. Prueba con arroz chaufa, lomo saltado, ají de gallina, arroz con pollo, tallarín saltado, pollo al horno, causa, papa a la huancaína, estofado de pollo o ceviche."; else{state=1; response="Claro, prepararemos "+current.name+". ¿Para cuántas personas?";}}
-        else if(state==1){int n=number(in); if(n<1||n>20)response="Dime un número entre 1 y 20. Por ejemplo: para 4 personas."; else{servings=n; state=2; response="Perfecto. "+ingredients()+" Cuando estés listo, dime comenzar.";}}
-        else if(in.contains("ingrediente")||in.contains("que necesito"))response=ingredients();
-        else if(in.contains("cuanto")||in.contains("cantidad"))response=amount(in);
-        else if(state==2){if(in.contains("comenz")||in.contains("empez")||in.equals("listo")||in.equals("vamos")){state=3;step=0;response=currentStep();}else response="Cuando quieras iniciar, dime comenzar.";}
-        else {if(in.contains("repet"))response=currentStep(); else if(in.contains("anterior")){if(step>0)step--;response=currentStep();} else if(in.contains("siguiente")||in.contains("sigue")||in.contains("ya esta")||in.equals("listo")){if(step<current.steps.length-1){step++;response=currentStep();}else{response="¡Listo! Terminamos "+current.name+". Buen provecho. Si quieres otra receta, dímelo."; reset();}} else response="Puedes decir siguiente, repetir, anterior, ingredientes o preguntarme una cantidad.";}
-        updateStatus(); say(response,true);
+    private String ingredientSummary() {
+        if (current == null || servings < 1) return "Primero dime la receta y para cuántas personas.";
+        double factor = (double) servings / current.baseServings;
+        StringBuilder out = new StringBuilder("Para ").append(servings).append(" personas necesitas:\n");
+        for (int i = 0; i < current.ingredients.size(); i++) {
+            RecipeStore.Ingredient ingredient = current.ingredients.get(i);
+            out.append("• ").append(format(ingredient.quantity * factor)).append(" ").append(ingredient.unit).append(" de ").append(ingredient.name);
+            if (i < current.ingredients.size() - 1) out.append("\n");
+        }
+        return out.toString();
     }
 
-    private Recipe find(String in){for(Map.Entry<String,Recipe> e:recipes.entrySet())if(in.contains(e.getKey()))return e.getValue(); if(in.contains("chaufa"))return recipes.get("arroz chaufa"); if(in.contains("lomo"))return recipes.get("lomo saltado"); if(in.contains("gallina"))return recipes.get("aji de gallina"); if(in.contains("huancaina"))return recipes.get("papa a la huancaina"); if(in.contains("causa"))return recipes.get("causa rellena"); if(in.contains("estofado"))return recipes.get("estofado de pollo"); if(in.contains("ceviche"))return recipes.get("ceviche"); return null;}
-    private int number(String in){for(String x:in.split("[^0-9]+"))if(!x.isEmpty())try{return Integer.parseInt(x);}catch(Exception ignored){} String[] w={"cero","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve","diez","once","doce","trece","catorce","quince","dieciseis","diecisiete","dieciocho","diecinueve","veinte"}; for(int n=1;n<w.length;n++)if(in.contains(w[n]))return n; return -1;}
-    private String ingredients(){if(current==null||servings<1)return "Primero necesito saber la receta y las personas."; double f=servings/4.0; StringBuilder b=new StringBuilder("Necesitaremos: "); for(int i=0;i<current.ingredients.length;i++){String[] x=current.ingredients[i]; if(i>0)b.append(i==current.ingredients.length-1?", y ":", "); b.append(fmt(Double.parseDouble(x[0])*f)).append(" ").append(x[1]).append(" de ").append(x[2]);} return b.append(".").toString();}
-    private String amount(String in){if(current==null||servings<1)return "Primero dime para cuántas personas."; double f=servings/4.0; for(String[] x:current.ingredients){String n=norm(x[2]); String first=n.split(" ")[0]; if(in.contains(n)||in.contains(first))return "Para "+servings+" personas necesitas "+fmt(Double.parseDouble(x[0])*f)+" "+x[1]+" de "+x[2]+".";} return "Dime el ingrediente que quieres consultar.";}
-    private String currentStep(){return "Paso "+(step+1)+" de "+current.steps.length+": "+current.steps[step]+" Cuando termines, dime siguiente.";}
-    private void reset(){current=null;servings=0;step=0;state=0;}
-    private void updateStatus(){if(current==null)contextText.setText("Esperando receta"); else if(servings==0)contextText.setText(current.name+" · faltan personas"); else contextText.setText(current.name+" · "+servings+" personas · "+(state==3?"cocinando":"listo"));}
+    private String preparationSummary() {
+        if (current == null) return "Primero elige una receta.";
+        StringBuilder out = new StringBuilder("Preparación previa:\n");
+        for (int i = 0; i < current.preparation.size(); i++) {
+            out.append(i + 1).append(". ").append(current.preparation.get(i));
+            if (i < current.preparation.size() - 1) out.append("\n");
+        }
+        return out.toString();
+    }
 
-    private void say(String m,boolean speak){bubble(m,false); if(speak&&ttsReady)tts.speak(m,TextToSpeech.QUEUE_FLUSH,null,"chef_response"); else if(speak&&!ttsReady)listeningText.setText("Respuesta visible; la voz del teléfono no está disponible todavía");}
-    private void bubble(String m,boolean user){TextView b=txt(m,16,user?Color.WHITE:TEXT,false); b.setPadding(dp(14),dp(11),dp(14),dp(11)); b.setBackground(round(user?GREEN:Color.WHITE,18)); b.setMaxWidth(dp(315)); LinearLayout line=new LinearLayout(this); line.setGravity(user?Gravity.END:Gravity.START); LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2); p.setMargins(0,dp(4),0,dp(4)); line.addView(b); messages.addView(line,p); chatScroll.post(()->chatScroll.fullScroll(View.FOCUS_DOWN));}
-    private void addMessage(String m,boolean user){bubble(m,user);}
+    private String currentStep() {
+        if (current == null || current.steps.isEmpty()) return "No hay pasos cargados.";
+        RecipeStore.Step step = current.steps.get(stepIndex);
+        StringBuilder out = new StringBuilder();
+        out.append("Paso ").append(stepIndex + 1).append(" de ").append(current.steps.size()).append(": ").append(step.title).append(". ").append(step.instruction);
+        if (step.duration != null && !step.duration.isEmpty()) out.append(" Tiempo aproximado: ").append(step.duration).append(".");
+        out.append(" Cuando termines, dime siguiente.");
+        return out.toString();
+    }
 
-    @Override public void onInit(int status){if(status==TextToSpeech.SUCCESS){int r=tts.setLanguage(new Locale("es","PE")); tts.setSpeechRate(.95f); ttsReady=r!=TextToSpeech.LANG_MISSING_DATA&&r!=TextToSpeech.LANG_NOT_SUPPORTED; if(ttsReady&&!greetingSpoken){greetingSpoken=true; tts.speak("Hola. Soy Chef Asistente. ¿Qué quieres cocinar hoy?",TextToSpeech.QUEUE_FLUSH,null,"chef_greeting");}}}
-    @Override protected void onDestroy(){if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();}
-    private TextView txt(String s,int sp,int color,boolean bold){TextView v=new TextView(this);v.setText(s);v.setTextSize(sp);v.setTextColor(color);if(bold)v.setTypeface(Typeface.DEFAULT_BOLD);return v;}
-    private GradientDrawable round(int color,int r){GradientDrawable g=new GradientDrawable();g.setColor(color);g.setCornerRadius(dp(r));return g;}
-    private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
-    private String fmt(double v){if(Math.abs(v-Math.rint(v))<.0001)return String.valueOf((int)Math.rint(v));return String.format(Locale.US,"%.1f",v).replace(".0","").replace(".",",");}
-    private String norm(String s){String n=Normalizer.normalize(s.toLowerCase(new Locale("es","PE")),Normalizer.Form.NFD);return n.replaceAll("\\p{M}","").trim();}
+    private String amountAnswer(String inputText) {
+        if (current == null || servings < 1) return "Primero dime la receta y para cuántas personas.";
+        double factor = (double) servings / current.baseServings;
+        RecipeStore.Ingredient best = null;
+        int length = 0;
+        for (RecipeStore.Ingredient ingredient : current.ingredients) {
+            String normalized = norm(ingredient.name);
+            for (String part : normalized.split("\\s+")) {
+                if (part.length() > 2 && inputText.contains(part) && part.length() > length) {
+                    best = ingredient;
+                    length = part.length();
+                }
+            }
+            if (inputText.contains(normalized)) {
+                best = ingredient;
+                break;
+            }
+        }
+        if (best == null) return "No identifiqué el ingrediente. Puedes decir, por ejemplo: cuánto sillao necesito.";
+        return "Para " + servings + " personas necesitas " + format(best.quantity * factor) + " " + best.unit + " de " + best.name + ".";
+    }
+
+    private void updateStepStatus() {
+        if (current != null) recipeStatus.setText(current.name + " · paso " + (stepIndex + 1) + " de " + current.steps.size());
+    }
+
+    private void resetRecipe() {
+        current = null;
+        servings = 0;
+        stepIndex = 0;
+        state = 0;
+        recipeStatus.setText("Esperando receta");
+    }
+
+    private int detectNumber(String inputText) {
+        for (String token : inputText.split("[^0-9]+")) {
+            if (!token.isEmpty()) {
+                try { return Integer.parseInt(token); } catch (Exception ignored) {}
+            }
+        }
+        String[] words = {"cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciseis", "diecisiete", "dieciocho", "diecinueve", "veinte"};
+        for (int i = 1; i < words.length; i++) if (inputText.contains(words[i])) return i;
+        return -1;
+    }
+
+    private void launchVoiceInput() {
+        if (tts != null) tts.stop();
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-PE");
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla con Chef Asistente");
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+        try {
+            startActivityForResult(intent, VOICE_REQUEST);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, "No encontré el dictado de voz de Android. Puedes escribir en la parte inferior.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != VOICE_REQUEST) return;
+        if (resultCode == RESULT_OK && data != null) {
+            ArrayList<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if (results != null && !results.isEmpty()) {
+                String heard = results.get(0);
+                heardStatus.setText("🎙️ Último escuchado: “" + heard + "”");
+                process(heard);
+                return;
+            }
+        }
+        heardStatus.setText("🎙️ No recibí texto del dictado. Intenta otra vez.");
+    }
+
+    private void say(String text, boolean speak) {
+        bubble(text, false);
+        if (speak && ttsReady) tts.speak(text.replace("\n", ". "), TextToSpeech.QUEUE_FLUSH, null, "chef_voice");
+    }
+
+    private void bubble(String text, boolean user) {
+        if (messages == null) return;
+        TextView bubble = label(text, 15, user ? Color.WHITE : TEXT, false);
+        bubble.setPadding(dp(13), dp(10), dp(13), dp(10));
+        bubble.setBackground(round(user ? GREEN : Color.WHITE, 17));
+        bubble.setMaxWidth(dp(330));
+        LinearLayout line = new LinearLayout(this);
+        line.setGravity(user ? Gravity.END : Gravity.START);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(4), 0, dp(4));
+        line.addView(bubble);
+        messages.addView(line, params);
+        scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
+    }
+
+    @Override
+    public void onInit(int status) {
+        if (status == TextToSpeech.SUCCESS) {
+            int result = tts.setLanguage(new Locale("es", "PE"));
+            tts.setSpeechRate(0.94f);
+            ttsReady = result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED;
+            if (ttsReady && greetingPending) {
+                greetingPending = false;
+                tts.speak("Hola. Soy Chef Asistente. ¿Qué quieres cocinar hoy?", TextToSpeech.QUEUE_FLUSH, null, "greeting");
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+        }
+        super.onDestroy();
+    }
+
+    private TextView label(String text, int size, int color, boolean bold) {
+        TextView view = new TextView(this);
+        view.setText(text);
+        view.setTextSize(size);
+        view.setTextColor(color);
+        if (bold) view.setTypeface(Typeface.DEFAULT_BOLD);
+        return view;
+    }
+
+    private GradientDrawable round(int color, int radius) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(dp(radius));
+        return drawable;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private String format(double value) {
+        if (Math.abs(value - Math.rint(value)) < 0.0001) return String.valueOf((int) Math.rint(value));
+        return String.format(Locale.US, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "").replace(".", ",");
+    }
+
+    public static String norm(String value) {
+        if (value == null) return "";
+        String normalized = Normalizer.normalize(value.toLowerCase(new Locale("es", "PE")), Normalizer.Form.NFD);
+        return normalized.replaceAll("\\p{M}", "").trim();
+    }
 }
