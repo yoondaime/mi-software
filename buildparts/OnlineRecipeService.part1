@@ -1,0 +1,42 @@
+package pe.chef.asistente;
+
+import android.os.Handler;
+import android.os.Looper;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+public final class OnlineRecipeService {
+    public interface Callback { void onResult(RecipeStore.Recipe recipe, String error); }
+
+    public void search(String rawQuery, Callback callback) {
+        new Thread(() -> {
+            try {
+                String query = mapQuery(rawQuery);
+                String address = "https://www.themealdb.com/api/json/v1/1/search.php?s=" + URLEncoder.encode(query, "UTF-8");
+                HttpURLConnection c = (HttpURLConnection) new URL(address).openConnection();
+                c.setConnectTimeout(7000); c.setReadTimeout(10000);
+                c.setRequestProperty("Accept", "application/json");
+                c.setRequestProperty("User-Agent", "ChefAsistente/0.5-development");
+                if (c.getResponseCode() != 200) throw new Exception("HTTP");
+                StringBuilder body = new StringBuilder();
+                try (BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line; while ((line = r.readLine()) != null) body.append(line);
+                } finally { c.disconnect(); }
+                JSONObject root = new JSONObject(body.toString());
+                JSONArray meals = root.optJSONArray("meals");
+                if (meals == null || meals.length() == 0) { post(callback, null, "No encontré esa receta en el buscador externo."); return; }
+                JSONObject meal = meals.getJSONObject(0);
+                RecipeStore.Recipe recipe = new RecipeStore.Recipe();
+                recipe.key = cleanKey(rawQuery, meal.optString("strMeal", "receta online"));
+                recipe.name = meal.optString("strMeal", rawQuery);
+                recipe.baseServings = 4; recipe.external = true;
+                recipe.sourceLabel = "TheMealDB · búsqueda experimental";
+                recipe.aliases.add(rawQuery); recipe.aliases.add(recipe.name);
