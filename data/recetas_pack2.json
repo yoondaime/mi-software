@@ -1,0 +1,106 @@
+{
+  "version": 5,
+  "updated": "2026-08-13",
+  "recipes": [
+    {
+      "key": "seco de res",
+      "name": "Seco de res",
+      "aliases": ["seco", "seco de carne", "seco de res"],
+      "baseServings": 4,
+      "ingredients": [
+        {"name":"carne de res para guiso","quantity":700,"unit":"gramos"},
+        {"name":"culantro licuado","quantity":1,"unit":"taza"},
+        {"name":"cebolla roja picada","quantity":1,"unit":"unidad"},
+        {"name":"ajo molido","quantity":2,"unit":"cucharaditas"},
+        {"name":"ají amarillo licuado","quantity":2,"unit":"cucharadas"},
+        {"name":"arvejas","quantity":1,"unit":"taza"},
+        {"name":"zanahoria en rodajas","quantity":2,"unit":"unidades"},
+        {"name":"papas","quantity":4,"unit":"unidades"},
+        {"name":"caldo de res o agua","quantity":2.5,"unit":"tazas"},
+        {"name":"aceite vegetal","quantity":3,"unit":"cucharadas"},
+        {"name":"sal","quantity":1,"unit":"cucharadita"},
+        {"name":"pimienta","quantity":0.25,"unit":"cucharadita"}
+      ],
+      "preparation": [
+        "Corta la carne en cubos medianos de tamaño parecido.",
+        "Licúa el culantro con un poco de agua hasta obtener una mezcla uniforme.",
+        "Pica la cebolla, corta la zanahoria y pela las papas antes de comenzar."
+      ],
+      "steps": [
+        {"title":"Dora la carne","instruction":"Calienta el aceite en una olla a fuego medio-alto. Sazona la carne con sal y pimienta y dórala por tandas para que tome color sin soltar demasiada agua.","duration":"6 a 8 minutos"},
+        {"title":"Haz el aderezo","instruction":"Retira momentáneamente la carne. En la misma olla agrega la cebolla y cocina hasta que esté transparente. Añade el ajo y el ají amarillo y mezcla.","duration":"5 minutos"},
+        {"title":"Cocina el culantro","instruction":"Agrega el culantro licuado y cocina removiendo hasta que el aroma crudo disminuya y el color se intensifique.","duration":"4 minutos"},
+        {"title":"Guisar la carne","instruction":"Devuelve la carne a la olla y agrega el caldo. Cuando hierva, baja el fuego y cocina tapado hasta que la carne empiece a ablandarse.","duration":"35 a 50 minutos"},
+        {"title":"Agrega verduras","instruction":"Incorpora zanahoria, arvejas y papas. Si falta líquido, añade un poco de agua caliente. Cocina a fuego medio-bajo.","duration":"15 a 20 minutos"},
+        {"title":"Termina el guiso","instruction":"Comprueba que la carne y las papas estén tiernas. Prueba la salsa y ajusta sal y pimienta. La salsa debe quedar ligeramente espesa.","duration":"3 minutos"},
+        {"title":"Sirve","instruction":"Sirve caliente acompañado de arroz blanco y, si deseas, frejoles.","duration":"inmediato"}
+      ]
+    },
+    {
+      "key": "tallarines verdes",
+      "name": "Tallarines verdes con bistec",
+      "aliases": ["tallarines verdes", "tallarines verdes con bistec"],
+      "baseServings": 4,
+      "ingredients": [
+        {"name":"tallarines","quantity":500,"unit":"gramos"},
+        {"name":"hojas de espinaca","quantity":2,"unit":"tazas"},
+        {"name":"hojas de albahaca","quantity":2,"unit":"tazas"},
+        {"name":"queso fresco","quantity":180,"unit":"gramos"},
+        {"name":"leche evaporada","quantity":1,"unit":"taza"},
+        {"name":"nueces o pecanas","quantity":40,"unit":"gramos"},
+        {"name":"ajo","quantity":2,"unit":"dientes"},
+        {"name":"aceite vegetal","quantity":3,"unit":"cucharadas"},
+        {"name":"bistecs de res","quantity":4,"unit":"unidades"},
+        {"name":"sal","quantity":1,"unit":"cucharadita"},
+        {"name":"pimienta","quantity":0.25,"unit":"cucharadita"}
+      ],
+      "preparation": [
+        "Lava y escurre bien la albahaca y la espinaca.",
+        "Ten el queso cortado en trozos y los bistecs sazonados con sal y pimienta.",
+        "Pon a hervir abundante agua para la pasta."
+      ],
+      "steps": [
+        {"title":"Cocina la pasta","instruction":"Cocina los tallarines en agua con sal hasta que estén al dente. Reserva media taza del agua de cocción y escurre la pasta.","duration":"según el paquete"},
+        {"title":"Saltea las hojas","instruction":"Calienta una cucharada de aceite y saltea rápidamente espinaca, albahaca y ajo hasta que las hojas se marchiten sin oscurecerse demasiado.","duration":"1 a 2 minutos"},
+        {"title":"Licúa la salsa","instruction":"Licúa las hojas salteadas con queso fresco, leche y nueces o pecanas hasta obtener una salsa cremosa. Ajusta la textura con un poco del agua de la pasta si es necesario.","duration":"2 minutos"},
+        {"title":"Calienta la salsa","instruction":"Vierte la salsa en una sartén amplia a fuego bajo. Prueba y ajusta sal. Evita hervirla demasiado para conservar el color.","duration":"2 minutos"},
+        {"title":"Mezcla los tallarines","instruction":"Agrega los tallarines cocidos a la salsa y mezcla con pinzas o dos cucharas hasta cubrirlos uniformemente.","duration":"1 a 2 minutos"},
+        {"title":"Cocina los bistecs","instruction":"En otra sartén bien caliente cocina los bistecs al punto deseado y evita sobrecocinarlos.","duration":"3 a 6 minutos por lado según grosor"},
+        {"title":"Sirve","instruction":"Sirve los tallarines verdes inmediatamente y coloca un bistec encima o al costado.","duration":"inmediato"}
+      ]
+    },
+    {
+      "key": "sopa criolla",
+      "name": "Sopa criolla",
+      "aliases": ["sopa criolla", "sopa de carne con fideos"],
+      "baseServings": 4,
+      "ingredients": [
+        {"name":"carne de res en tiras","quantity":350,"unit":"gramos"},
+        {"name":"fideos cabello de ángel","quantity":180,"unit":"gramos"},
+        {"name":"cebolla roja picada","quantity":1,"unit":"unidad"},
+        {"name":"tomate picado","quantity":2,"unit":"unidades"},
+        {"name":"ajo molido","quantity":2,"unit":"cucharaditas"},
+        {"name":"ají panca molido","quantity":2,"unit":"cucharadas"},
+        {"name":"caldo de res","quantity":6,"unit":"tazas"},
+        {"name":"leche evaporada","quantity":0.75,"unit":"taza"},
+        {"name":"huevos","quantity":4,"unit":"unidades"},
+        {"name":"orégano seco","quantity":1,"unit":"cucharadita"},
+        {"name":"aceite vegetal","quantity":2,"unit":"cucharadas"}
+      ],
+      "preparation": [
+        "Corta la carne en tiras delgadas.",
+        "Pica cebolla y tomate y ten el caldo caliente.",
+        "Ten los huevos listos para agregarlos al final."
+      ],
+      "steps": [
+        {"title":"Dora la carne","instruction":"Calienta el aceite en una olla y saltea la carne a fuego medio-alto hasta que cambie de color y empiece a dorarse.","duration":"3 minutos"},
+        {"title":"Prepara el aderezo","instruction":"Añade cebolla y cocina hasta que esté transparente. Incorpora ajo, ají panca y tomate y mezcla hasta formar un aderezo concentrado.","duration":"6 minutos"},
+        {"title":"Agrega el caldo","instruction":"Vierte el caldo caliente y deja que hierva suavemente para integrar los sabores.","duration":"5 minutos"},
+        {"title":"Cocina los fideos","instruction":"Agrega los fideos y cocina según su grosor, removiendo ocasionalmente para que no se peguen.","duration":"3 a 5 minutos"},
+        {"title":"Agrega leche y orégano","instruction":"Baja el fuego y añade la leche evaporada y el orégano frotado entre las manos. Mezcla sin dejar que hierva violentamente.","duration":"1 minuto"},
+        {"title":"Cocina los huevos","instruction":"Agrega un huevo por porción directamente a la sopa o incorpóralos previamente pochados. Cocina hasta que la clara esté firme.","duration":"3 a 4 minutos"},
+        {"title":"Sirve","instruction":"Prueba la sazón y sirve la sopa muy caliente.","duration":"inmediato"}
+      ]
+    }
+  ]
+}
