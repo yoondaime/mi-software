@@ -1,7 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <queries>
         <intent>
-            <action android:name="android.speech.RecognitionService" />
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
         </intent>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
@@ -10,7 +12,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Chef Asistente v0.3"
+        android:label="Chef Asistente Híbrido v0.4"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
