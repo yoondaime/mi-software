@@ -7,11 +7,11 @@ android {
     compileSdk 36
 
     defaultConfig {
-        applicationId "pe.chef.asistente.hybrid05"
+        applicationId "pe.chef.asistente.offline06"
         minSdk 23
         targetSdk 36
-        versionCode 5
-        versionName "0.5"
+        versionCode 6
+        versionName "0.6"
     }
 
     signingConfigs {
@@ -35,4 +35,12 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    androidResources {
+        noCompress 'ort'
+    }
+}
+
+dependencies {
+    implementation files('libs/sherpa-onnx-1.13.5.aar')
 }
