@@ -1,4 +1,4 @@
-name: Build Chef Asistente APK
+name: Build Chef Asistente Release APK
 
 on:
   push:
@@ -8,6 +8,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CHEF_KEYSTORE_PASSWORD: ChefAsistenteTest2026
+      CHEF_KEY_PASSWORD: ChefAsistenteTest2026
+      CHEF_KEY_ALIAS: chef-asistente
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,15 +34,38 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
+      - name: Generate temporary release signing key
+        run: |
+          KEYSTORE="$RUNNER_TEMP/chef-release.p12"
+          keytool -genkeypair -v \
+            -keystore "$KEYSTORE" \
+            -storetype PKCS12 \
+            -storepass "$CHEF_KEYSTORE_PASSWORD" \
+            -keypass "$CHEF_KEY_PASSWORD" \
+            -alias "$CHEF_KEY_ALIAS" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 3650 \
+            -dname "CN=Chef Asistente Prototype, OU=Mobile, O=Chef Asistente, L=Tacna, ST=Tacna, C=PE"
+          echo "CHEF_KEYSTORE_FILE=$KEYSTORE" >> "$GITHUB_ENV"
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk ChefAsistente.apk
+      - name: Build signed release APK
+        run: gradle :app:assembleRelease --stacktrace
 
-      - name: Upload APK
+      - name: Verify APK signature
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+
+      - name: Prepare deliverable
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.2_release.apk
+          sha256sum ChefAsistente_v0.2_release.apk > ChefAsistente_v0.2_release.sha256.txt
+
+      - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: ChefAsistente-APK
-          path: ChefAsistente.apk
+          name: ChefAsistente-v0.2-Release
+          path: |
+            ChefAsistente_v0.2_release.apk
+            ChefAsistente_v0.2_release.sha256.txt
           retention-days: 30
