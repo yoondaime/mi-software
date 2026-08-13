@@ -18,6 +18,7 @@ public class OfflineMainActivity extends MainActivity {
     private Button sendButton;
     private EditText textInput;
     private TextView heardStatus;
+    private boolean initializationFailed = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,16 +35,26 @@ public class OfflineMainActivity extends MainActivity {
             micButton.setOnClickListener(v -> toggleOfflineVoice());
         }
         if (heardStatus != null) {
-            heardStatus.setText("🎙️ Preparando reconocimiento OFFLINE en español…");
+            heardStatus.setText("🎙️ Preparando reconocimiento OFFLINE v0.6.1…");
         }
     }
 
     private void initializeOfflineRecognizer() {
+        initializationFailed = false;
+        if (offlineSpeech != null) {
+            offlineSpeech.release();
+        }
+        if (micButton != null) {
+            micButton.setEnabled(false);
+            micButton.setText("🎙️  PREPARANDO VOZ OFFLINE…");
+        }
+
         offlineSpeech = new OfflineSpeechRecognizer(this, new OfflineSpeechRecognizer.Callback() {
             @Override
             public void onReady() {
+                initializationFailed = false;
                 if (heardStatus != null) {
-                    heardStatus.setText("🎙️ Voz OFFLINE lista · español · audio local");
+                    heardStatus.setText("✅ Voz OFFLINE lista · español · audio local");
                 }
                 resetMicButton();
             }
@@ -64,8 +75,16 @@ public class OfflineMainActivity extends MainActivity {
 
             @Override
             public void onError(String message) {
-                resetMicButton();
+                initializationFailed = offlineSpeech == null || !offlineSpeech.isReady();
                 if (heardStatus != null) heardStatus.setText("⚠️ " + message);
+                if (micButton != null) {
+                    if (initializationFailed) {
+                        micButton.setEnabled(true);
+                        micButton.setText("🔄  REINTENTAR VOZ OFFLINE");
+                    } else {
+                        resetMicButton();
+                    }
+                }
                 Toast.makeText(OfflineMainActivity.this, message, Toast.LENGTH_LONG).show();
             }
         });
@@ -73,8 +92,13 @@ public class OfflineMainActivity extends MainActivity {
     }
 
     private void toggleOfflineVoice() {
-        if (offlineSpeech == null || !offlineSpeech.isReady()) {
-            Toast.makeText(this, "La voz offline todavía se está preparando.", Toast.LENGTH_SHORT).show();
+        if (initializationFailed || offlineSpeech == null) {
+            initializeOfflineRecognizer();
+            return;
+        }
+
+        if (!offlineSpeech.isReady()) {
+            Toast.makeText(this, "La voz offline todavía se está preparando. Mira el estado encima del botón.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -145,10 +169,10 @@ public class OfflineMainActivity extends MainActivity {
             String text = String.valueOf(textView.getText());
             if (text.startsWith("🎙️")) heardStatus = textView;
             if (text.contains("CHEF ASISTENTE")) {
-                textView.setText("CHEF ASISTENTE · VOZ OFFLINE v0.6");
+                textView.setText("CHEF ASISTENTE · VOZ OFFLINE v0.6.1");
             }
-            if (text.contains("Funciona sin internet y actualiza recetas")) {
-                textView.setText("Recetas híbridas + reconocimiento de voz dentro del teléfono");
+            if (text.contains("Funciona sin internet y actualiza recetas") || text.contains("Recetas híbridas + reconocimiento")) {
+                textView.setText("Voz local + recetas offline · sin depender del dictado de Google");
             }
         }
 
