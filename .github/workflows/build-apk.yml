@@ -1,4 +1,4 @@
-name: Build Chef Asistente Release APK
+name: Build Chef Asistente Voice Fix APK
 
 on:
   push:
@@ -8,11 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      CHEF_KEYSTORE_PASSWORD: ChefAsistenteTest2026
-      CHEF_KEY_PASSWORD: ChefAsistenteTest2026
-      CHEF_KEY_ALIAS: chef-asistente
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,38 +29,27 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Generate temporary release signing key
+      - name: Generate temporary demo signing key
         run: |
-          KEYSTORE="$RUNNER_TEMP/chef-release.p12"
-          keytool -genkeypair -v \
-            -keystore "$KEYSTORE" \
-            -storetype PKCS12 \
-            -storepass "$CHEF_KEYSTORE_PASSWORD" \
-            -keypass "$CHEF_KEY_PASSWORD" \
-            -alias "$CHEF_KEY_ALIAS" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 3650 \
-            -dname "CN=Chef Asistente Prototype, OU=Mobile, O=Chef Asistente, L=Tacna, ST=Tacna, C=PE"
-          echo "CHEF_KEYSTORE_FILE=$KEYSTORE" >> "$GITHUB_ENV"
+          keytool -genkeypair -v -keystore "$GITHUB_WORKSPACE/chef-release.jks" -storepass 'ChefDemo2026!' -keypass 'ChefDemo2026!' -alias chef -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Chef Asistente Demo, OU=Development, O=Chef Asistente, L=Tacna, ST=Tacna, C=PE"
 
       - name: Build signed release APK
+        env:
+          CHEF_KEYSTORE: ${{ github.workspace }}/chef-release.jks
+          CHEF_STORE_PASSWORD: ChefDemo2026!
+          CHEF_KEY_ALIAS: chef
+          CHEF_KEY_PASSWORD: ChefDemo2026!
         run: gradle :app:assembleRelease --stacktrace
 
       - name: Verify APK signature
-        run: |
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+        run: $ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
 
       - name: Prepare deliverable
-        run: |
-          cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.2_release.apk
-          sha256sum ChefAsistente_v0.2_release.apk > ChefAsistente_v0.2_release.sha256.txt
+        run: cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.3_VOZ.apk
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: ChefAsistente-v0.2-Release
-          path: |
-            ChefAsistente_v0.2_release.apk
-            ChefAsistente_v0.2_release.sha256.txt
+          name: ChefAsistente-v0.3-VOZ
+          path: ChefAsistente_v0.3_VOZ.apk
           retention-days: 30
