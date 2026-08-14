@@ -30,12 +30,12 @@ public class OfflineMainActivity extends MainActivity {
 
     private void configureOfflineUi() {
         if (micButton != null) {
-            micButton.setText("🎙️  PREPARANDO WHISPER OFFLINE…");
+            micButton.setText("🎙️  PREPARANDO WHISPER BASE…");
             micButton.setEnabled(false);
             micButton.setOnClickListener(v -> toggleOfflineVoice());
         }
         if (heardStatus != null) {
-            heardStatus.setText("🎙️ Preparando Whisper OFFLINE v0.7 en español…");
+            heardStatus.setText("🎙️ Preparando Whisper Base v0.7.1 en español…");
         }
     }
 
@@ -44,7 +44,7 @@ public class OfflineMainActivity extends MainActivity {
         if (offlineSpeech != null) offlineSpeech.release();
         if (micButton != null) {
             micButton.setEnabled(false);
-            micButton.setText("🎙️  PREPARANDO WHISPER OFFLINE…");
+            micButton.setText("🎙️  PREPARANDO WHISPER BASE…");
         }
 
         offlineSpeech = new OfflineSpeechRecognizer(this, new OfflineSpeechRecognizer.Callback() {
@@ -52,7 +52,7 @@ public class OfflineMainActivity extends MainActivity {
             public void onReady() {
                 initializationFailed = false;
                 if (heardStatus != null) {
-                    heardStatus.setText("✅ Whisper OFFLINE listo · español · IA local · sin Internet");
+                    heardStatus.setText("✅ Whisper Base listo · español de cocina · IA local · sin Internet");
                 }
                 resetMicButton();
             }
@@ -66,7 +66,7 @@ public class OfflineMainActivity extends MainActivity {
             public void onResult(String text) {
                 resetMicButton();
                 if (heardStatus != null) {
-                    heardStatus.setText("🎙️ Whisper escuchó: “" + text + "”");
+                    heardStatus.setText("🎙️ Whisper Base escuchó: “" + text + "”");
                 }
                 sendRecognizedText(text);
             }
@@ -78,7 +78,7 @@ public class OfflineMainActivity extends MainActivity {
                 if (micButton != null) {
                     if (initializationFailed) {
                         micButton.setEnabled(true);
-                        micButton.setText("🔄  REINTENTAR WHISPER OFFLINE");
+                        micButton.setText("🔄  REINTENTAR WHISPER BASE");
                     } else {
                         resetMicButton();
                     }
@@ -96,14 +96,14 @@ public class OfflineMainActivity extends MainActivity {
         }
 
         if (!offlineSpeech.isReady()) {
-            Toast.makeText(this, "Whisper todavía se está preparando. Mira el estado encima del botón.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Whisper Base todavía se está preparando. Mira el estado encima del botón.", Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (offlineSpeech.isRecording()) {
             if (micButton != null) {
                 micButton.setEnabled(false);
-                micButton.setText("⏳  WHISPER ESTÁ ENTENDIENDO…");
+                micButton.setText("⏳  WHISPER BASE ESTÁ ENTENDIENDO…");
             }
             offlineSpeech.stopAndDecode();
             return;
@@ -118,7 +118,7 @@ public class OfflineMainActivity extends MainActivity {
     }
 
     private void startOfflineRecording() {
-        if (heardStatus != null) heardStatus.setText("🎙️ Whisper escuchando SIN INTERNET…");
+        if (heardStatus != null) heardStatus.setText("🎙️ Whisper Base escuchando SIN INTERNET…");
         if (micButton != null) micButton.setText("⏹  DETENER Y ENTENDER");
         offlineSpeech.startRecording();
     }
@@ -136,7 +136,7 @@ public class OfflineMainActivity extends MainActivity {
         if (micButton == null) return;
         boolean enabled = offlineSpeech != null && offlineSpeech.isReady();
         micButton.setEnabled(enabled);
-        micButton.setText(enabled ? "🎤  HABLAR CON WHISPER" : "🎙️  PREPARANDO WHISPER OFFLINE…");
+        micButton.setText(enabled ? "🎤  HABLAR CON WHISPER BASE" : "🎙️  PREPARANDO WHISPER BASE…");
     }
 
     @Override
@@ -146,7 +146,7 @@ public class OfflineMainActivity extends MainActivity {
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startOfflineRecording();
         } else if (heardStatus != null) {
-            heardStatus.setText("⚠️ Permite el micrófono para usar Whisper. Puedes seguir escribiendo.");
+            heardStatus.setText("⚠️ Permite el micrófono para usar Whisper Base. Puedes seguir escribiendo.");
         }
     }
 
@@ -165,10 +165,10 @@ public class OfflineMainActivity extends MainActivity {
             String text = String.valueOf(textView.getText());
             if (text.startsWith("🎙️")) heardStatus = textView;
             if (text.contains("CHEF ASISTENTE")) {
-                textView.setText("CHEF ASISTENTE · WHISPER LOCAL v0.7");
+                textView.setText("CHEF ASISTENTE · WHISPER BASE v0.7.1");
             }
-            if (text.contains("Funciona sin internet y actualiza recetas") || text.contains("Recetas híbridas + reconocimiento") || text.contains("Voz local + recetas offline")) {
-                textView.setText("Whisper local + recetas offline · IA de voz sin costo por uso");
+            if (text.contains("Funciona sin internet y actualiza recetas") || text.contains("Recetas híbridas + reconocimiento") || text.contains("Voz local + recetas offline") || text.contains("Whisper local + recetas offline")) {
+                textView.setText("Whisper Base + vocabulario de cocina · IA local sin costo por uso");
             }
         }
 
