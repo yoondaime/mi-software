@@ -7,12 +7,6 @@ import android.media.MediaRecorder;
 import android.os.Handler;
 import android.os.Looper;
 
-import com.k2fsa.sherpa.onnx.OfflineModelConfig;
-import com.k2fsa.sherpa.onnx.OfflineMoonshineModelConfig;
-import com.k2fsa.sherpa.onnx.OfflineRecognizer;
-import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig;
-import com.k2fsa.sherpa.onnx.OfflineStream;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -28,20 +22,21 @@ public class OfflineSpeechRecognizer {
     }
 
     private static final int RATE = 16000;
-    private static final String ASSET_DIR = "models/moonshine-es";
-    private static final String MODEL_DIR = "moonshine-es-v061";
+    private static final String MODEL_ASSET = "models/whisper/ggml-tiny.bin";
+    private static final String MODEL_DIR = "whisper-v07";
 
     private final Context context;
     private final Callback callback;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final AtomicBoolean recording = new AtomicBoolean(false);
     private final AtomicBoolean initFinished = new AtomicBoolean(false);
+    private final Object whisperLock = new Object();
 
-    private OfflineRecognizer recognizer;
     private AudioRecord recorder;
     private Thread recordThread;
     private ByteArrayOutputStream pcm;
     private volatile boolean ready;
+    private long whisperContext = 0L;
 
     public OfflineSpeechRecognizer(Context context, Callback callback) {
         this.context = context.getApplicationContext();
@@ -54,83 +49,58 @@ public class OfflineSpeechRecognizer {
     public void initialize() {
         ready = false;
         initFinished.set(false);
-        state("🎙️ 1/4 · Preparando archivos de voz offline…");
+        state("🎙️ 1/3 · Preparando Whisper en español…");
 
         main.postDelayed(() -> {
             if (!initFinished.get()) {
-                state("⏳ El motor de voz sigue cargando. Puedes seguir escribiendo mientras termina…");
+                state("⏳ Whisper sigue cargando. Puedes seguir escribiendo mientras termina…");
             }
-        }, 25000);
+        }, 30000);
 
         main.postDelayed(() -> {
             if (!initFinished.get()) {
-                state("⚠️ La carga de voz está tardando demasiado en este teléfono. La app escrita sigue funcionando.");
+                state("⚠️ Whisper está tardando más de lo esperado en este teléfono.");
             }
-        }, 70000);
+        }, 90000);
 
         new Thread(() -> {
             try {
                 File modelDir = new File(context.getFilesDir(), "speech/" + MODEL_DIR);
                 if (!modelDir.exists() && !modelDir.mkdirs()) {
-                    throw new Exception("No se pudo crear la carpeta local del modelo");
+                    throw new Exception("No se pudo crear la carpeta local de Whisper");
                 }
 
-                File marker = new File(modelDir, "ready-v061.marker");
-                File encoder = new File(modelDir, "encoder_model.ort");
-                File decoder = new File(modelDir, "decoder_model_merged.ort");
-                File tokens = new File(modelDir, "tokens.txt");
-
-                boolean valid = marker.exists()
-                        && encoder.exists() && encoder.length() > 10_000_000L
-                        && decoder.exists() && decoder.length() > 20_000_000L
-                        && tokens.exists() && tokens.length() > 100_000L;
-
-                if (!valid) {
-                    marker.delete();
-                    state("🎙️ 1/4 · Copiando encoder al teléfono…");
-                    copyAsset(ASSET_DIR + "/encoder_model.ort", encoder);
-
-                    state("🎙️ 2/4 · Copiando decoder al teléfono…");
-                    copyAsset(ASSET_DIR + "/decoder_model_merged.ort", decoder);
-
-                    state("🎙️ 3/4 · Copiando vocabulario español…");
-                    copyAsset(ASSET_DIR + "/tokens.txt", tokens);
-
-                    try (FileOutputStream out = new FileOutputStream(marker, false)) {
-                        out.write("ok-v061".getBytes());
-                        out.flush();
-                    }
+                File modelFile = new File(modelDir, "ggml-tiny.bin");
+                if (!modelFile.exists() || modelFile.length() < 60_000_000L) {
+                    state("🎙️ 1/3 · Copiando modelo Whisper al teléfono…");
+                    copyAsset(MODEL_ASSET, modelFile);
                 } else {
-                    state("🎙️ 3/4 · Modelo local encontrado. Preparando motor…");
+                    state("🎙️ 1/3 · Modelo Whisper local encontrado…");
                 }
 
-                state("🎙️ 4/4 · Cargando motor de reconocimiento español…");
+                state("🎙️ 2/3 · Cargando inteligencia de voz Whisper…");
+                long ptr = WhisperBridge.initContext(modelFile.getAbsolutePath());
+                if (ptr == 0L) {
+                    throw new Exception("Whisper no pudo abrir el modelo español");
+                }
 
-                OfflineMoonshineModelConfig moonshine = new OfflineMoonshineModelConfig();
-                moonshine.setEncoder(encoder.getAbsolutePath());
-                moonshine.setMergedDecoder(decoder.getAbsolutePath());
+                synchronized (whisperLock) {
+                    if (whisperContext != 0L) {
+                        try { WhisperBridge.freeContext(whisperContext); } catch (Throwable ignored) {}
+                    }
+                    whisperContext = ptr;
+                }
 
-                OfflineModelConfig model = new OfflineModelConfig();
-                model.setMoonshine(moonshine);
-                model.setTokens(tokens.getAbsolutePath());
-                model.setNumThreads(2);
-                model.setProvider("cpu");
-                model.setModelType("moonshine");
-
-                OfflineRecognizerConfig config = new OfflineRecognizerConfig();
-                config.setModelConfig(model);
-                config.setDecodingMethod("greedy_search");
-
-                recognizer = new OfflineRecognizer(null, config);
+                state("🎙️ 3/3 · Whisper listo para escuchar en español");
                 ready = true;
                 initFinished.set(true);
                 main.post(callback::onReady);
             } catch (Throwable e) {
                 ready = false;
                 initFinished.set(true);
-                error("No pude iniciar la voz offline: " + msg(e));
+                error("No pude iniciar Whisper offline: " + msg(e));
             }
-        }, "chef-asr-init-v061").start();
+        }, "chef-whisper-init-v07").start();
     }
 
     private void copyAsset(String assetPath, File target) throws Exception {
@@ -147,20 +117,20 @@ public class OfflineSpeechRecognizer {
             out.flush();
         }
 
-        if (!temp.exists() || temp.length() < 1024) {
-            throw new Exception("El archivo " + target.getName() + " quedó incompleto");
+        if (!temp.exists() || temp.length() < 60_000_000L) {
+            throw new Exception("El modelo Whisper quedó incompleto");
         }
         if (target.exists() && !target.delete()) {
-            throw new Exception("No se pudo reemplazar " + target.getName());
+            throw new Exception("No se pudo reemplazar el modelo Whisper");
         }
         if (!temp.renameTo(target)) {
-            throw new Exception("No se pudo guardar " + target.getName());
+            throw new Exception("No se pudo guardar el modelo Whisper");
         }
     }
 
     public void startRecording() {
-        if (!ready || recognizer == null) {
-            error("La voz offline todavía no está lista.");
+        if (!ready || whisperContext == 0L) {
+            error("Whisper todavía no está listo.");
             return;
         }
         if (!recording.compareAndSet(false, true)) return;
@@ -187,7 +157,7 @@ public class OfflineSpeechRecognizer {
 
             pcm = new ByteArrayOutputStream();
             recorder.startRecording();
-            state("🎙️ Escuchando SIN INTERNET… toca DETENER cuando termines");
+            state("🎙️ Whisper escuchando SIN INTERNET… toca DETENER cuando termines");
 
             recordThread = new Thread(() -> {
                 byte[] buffer = new byte[4096];
@@ -199,7 +169,7 @@ public class OfflineSpeechRecognizer {
                         break;
                     }
                 }
-            }, "chef-asr-record-v061");
+            }, "chef-whisper-record-v07");
             recordThread.start();
         } catch (Throwable e) {
             recording.set(false);
@@ -210,7 +180,7 @@ public class OfflineSpeechRecognizer {
 
     public void stopAndDecode() {
         if (!recording.compareAndSet(true, false)) return;
-        state("⏳ Procesando tu voz dentro del teléfono…");
+        state("⏳ Whisper está entendiendo tu voz dentro del teléfono…");
         try {
             if (recorder != null) recorder.stop();
         } catch (Throwable ignored) {}
@@ -227,25 +197,29 @@ public class OfflineSpeechRecognizer {
                 }
 
                 float[] samples = toFloat(bytes);
-                OfflineStream stream = recognizer.createStream();
-                try {
-                    stream.acceptWaveform(samples, RATE);
-                    recognizer.decode(stream);
-                    String text = recognizer.getResult(stream).getText();
-                    if (text == null || text.trim().isEmpty()) {
-                        error("No logré entender la frase.");
-                        return;
+                StringBuilder text = new StringBuilder();
+                synchronized (whisperLock) {
+                    if (whisperContext == 0L) throw new Exception("motor Whisper cerrado");
+                    int threads = Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() - 1));
+                    WhisperBridge.fullTranscribe(whisperContext, threads, samples);
+                    int count = WhisperBridge.getTextSegmentCount(whisperContext);
+                    for (int i = 0; i < count; i++) {
+                        String segment = WhisperBridge.getTextSegment(whisperContext, i);
+                        if (segment != null) text.append(segment).append(' ');
                     }
-                    String result = text.trim();
-                    main.post(() -> callback.onResult(result));
-                } finally {
-                    stream.release();
                 }
+
+                String result = text.toString().replaceAll("\\s+", " ").trim();
+                if (result.isEmpty()) {
+                    error("Whisper no logró entender la frase.");
+                    return;
+                }
+                main.post(() -> callback.onResult(result));
             } catch (Throwable e) {
                 closeRecorder();
-                error("No pude reconocer la frase: " + msg(e));
+                error("No pude reconocer la frase con Whisper: " + msg(e));
             }
-        }, "chef-asr-decode-v061").start();
+        }, "chef-whisper-decode-v07").start();
     }
 
     public void cancel() {
@@ -259,11 +233,11 @@ public class OfflineSpeechRecognizer {
     public void release() {
         cancel();
         ready = false;
-        if (recognizer != null) {
-            try {
-                recognizer.release();
-            } catch (Throwable ignored) {}
-            recognizer = null;
+        synchronized (whisperLock) {
+            if (whisperContext != 0L) {
+                try { WhisperBridge.freeContext(whisperContext); } catch (Throwable ignored) {}
+                whisperContext = 0L;
+            }
         }
     }
 
@@ -281,9 +255,7 @@ public class OfflineSpeechRecognizer {
         AudioRecord r = recorder;
         recorder = null;
         if (r != null) {
-            try {
-                r.release();
-            } catch (Throwable ignored) {}
+            try { r.release(); } catch (Throwable ignored) {}
         }
     }
 
@@ -298,6 +270,6 @@ public class OfflineSpeechRecognizer {
     private static String msg(Throwable e) {
         String s = e.getMessage();
         if (s == null || s.trim().isEmpty()) s = e.getClass().getSimpleName();
-        return s.length() > 160 ? s.substring(0, 160) : s;
+        return s.length() > 180 ? s.substring(0, 180) : s;
     }
 }
