@@ -1,0 +1,98 @@
+name: Build Chef Asistente v0.7 Whisper Local
+
+on:
+  push:
+    branches: [ chef-v0.7-whisper-local ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Chef
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools, NDK and CMake
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;25.2.9519653" "cmake;3.22.1"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Bundle Chef recipe catalogs
+        run: |
+          mkdir -p app/src/main/assets
+          cp data/recetas.json app/src/main/assets/recetas.json
+          if [ -f data/recetas_pack2.json ]; then
+            cp data/recetas_pack2.json app/src/main/assets/recetas_pack2.json
+          fi
+
+      - name: Build pinned whisper.cpp Android native runtime in Spanish
+        run: |
+          git clone https://github.com/ggml-org/whisper.cpp.git whisper-src
+          cd whisper-src
+          git checkout 592feef04a1802b18cbeffd0fd0eb5d02570c2ec
+          JNI=examples/whisper.android/lib/src/main/jni/whisper/jni.c
+          sed -i 's/Java_com_whispercpp_whisper_WhisperLib_00024Companion_/Java_pe_chef_asistente_WhisperBridge_/g' "$JNI"
+          sed -i 's/Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_/Java_pe_chef_asistente_WhisperBridge_/g' "$JNI"
+          sed -i 's/params.language = "en";/params.language = "es";/' "$JNI"
+          sed -i "s/abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'/abiFilters 'arm64-v8a'/" examples/whisper.android/lib/build.gradle
+          cd examples/whisper.android
+          chmod +x gradlew
+          ./gradlew :lib:assembleRelease --stacktrace
+          cd ../../..
+          mkdir -p app/src/main/jniLibs/arm64-v8a
+          rm -rf /tmp/whisper-aar && mkdir -p /tmp/whisper-aar
+          unzip -q whisper-src/examples/whisper.android/lib/build/outputs/aar/lib-release.aar -d /tmp/whisper-aar
+          cp /tmp/whisper-aar/jni/arm64-v8a/*.so app/src/main/jniLibs/arm64-v8a/
+          ls -lh app/src/main/jniLibs/arm64-v8a/
+
+      - name: Bundle multilingual Whisper tiny model and MIT notices
+        run: |
+          cd whisper-src
+          bash models/download-ggml-model.sh tiny
+          cd ..
+          mkdir -p app/src/main/assets/models/whisper app/src/main/assets/licenses
+          cp whisper-src/models/ggml-tiny.bin app/src/main/assets/models/whisper/ggml-tiny.bin
+          cp whisper-src/LICENSE app/src/main/assets/licenses/WHISPER_CPP_LICENSE.txt
+          curl -L --fail https://raw.githubusercontent.com/openai/whisper/main/LICENSE -o app/src/main/assets/licenses/OPENAI_WHISPER_LICENSE.txt
+          test -s app/src/main/assets/models/whisper/ggml-tiny.bin
+          ls -lh app/src/main/assets/models/whisper/ggml-tiny.bin
+
+      - name: Generate temporary v0.7 test signing key
+        run: |
+          keytool -genkeypair -v -keystore app/chef-release.jks -storepass 'ChefWhisper07Demo!' -keypass 'ChefWhisper07Demo!' -alias chef-whisper07 -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Chef Asistente Whisper Test, OU=Development, O=Chef Asistente, L=Tacna, ST=Tacna, C=PE"
+
+      - name: Build signed Chef v0.7 APK
+        env:
+          CHEF_KEYSTORE: chef-release.jks
+          CHEF_STORE_PASSWORD: 'ChefWhisper07Demo!'
+          CHEF_KEY_ALIAS: chef-whisper07
+          CHEF_KEY_PASSWORD: 'ChefWhisper07Demo!'
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Verify APK signature and contents
+        run: |
+          $ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose app/build/outputs/apk/release/app-release.apk
+          unzip -l app/build/outputs/apk/release/app-release.apk | grep -E 'ggml-tiny.bin|libwhisper.so|OPENAI_WHISPER_LICENSE|WHISPER_CPP_LICENSE'
+          ls -lh app/build/outputs/apk/release/app-release.apk
+
+      - name: Prepare deliverable
+        run: cp app/build/outputs/apk/release/app-release.apk ChefAsistente_v0.7_WHISPER_LOCAL.apk
+
+      - name: Upload Chef v0.7 Whisper APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChefAsistente-v0.7-WHISPER-LOCAL
+          path: ChefAsistente_v0.7_WHISPER_LOCAL.apk
+          retention-days: 30
