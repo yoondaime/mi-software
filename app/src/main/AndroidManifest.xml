@@ -14,7 +14,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Chef Asistente Whisper Base v0.7.1"
+        android:label="Chef Asistente Conversación Natural v0.7.2"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
